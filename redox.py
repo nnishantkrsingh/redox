@@ -5,6 +5,7 @@ import sys
 import os
 import time
 import threading
+from multiprocessing import Pool
 import urllib
 import traceback
 from concurrent.futures import ProcessPoolExecutor
@@ -86,7 +87,8 @@ def phrasescraper(aphrase, aprocpath):
         thread.start()
     for thread in threads:
         thread.join(timeout=120)
-    uprint('finished phrase operations for {} at {}'.format(aphrase, time.strftime('%X')))
+    uprint('finished phrase operations for {} at {}'.
+           format(aphrase, time.strftime('%X')))
 
 def chunkoperations(aprocpath, somechunks):
     """ file writing and printing """
@@ -96,7 +98,8 @@ def chunkoperations(aprocpath, somechunks):
     bodytable = chapterdoc.add_table(rows=len(somechunks), cols=1)
     progcount = 0
     uprint("Creating progress bar")
-    printprogress(progcount, len(somechunks), prefix='Progress:', suffix='Complete', pbarlength=50)
+    printprogress(progcount, len(somechunks), prefix='Progress:',
+                  suffix='Complete', pbarlength=50)
     for chunkno, chunk in enumerate(somechunks):
         chunkcell = bodytable.cell(chunkno, 0)
         chunktable = chunkcell.add_table(rows=5, cols=1)
@@ -113,8 +116,9 @@ def chunkoperations(aprocpath, somechunks):
             if sentence.sentiment.subjectivity < tickersubjectivity:
                 subticker = sentence
         textcell.text = " ".join(map(str, chunk)) + "\n" + "-"*60
-        phrasecell.text = " ".join(map(str, chunkphrases)) + "\n" + "-"*60
-        tickercell.text = "Ticker Suggestions :" + "\n"*2 + str(subticker) + "\n" + "-"*60
+        phrasecell.text = "\n".join(map(str, chunkphrases)) + "\n" + "-"*60
+        tickercell.text = "Ticker Suggestions :\n*2"
+        tickercell.add_run(str(subticker) + "\n" + "-"*60)
         imgcell.text = "_"*103
         time.sleep(0.1)
         progcount += 1
@@ -145,8 +149,9 @@ def chapterops(chapterpath):
 
 if __name__ == '__main__':
     PROJECTPATH = "C:\\Users\\nnikh\\Documents\\scrape"
-    uprint("\nBeginning Scrape for {}\n".format(PROJECTPATH))
+    uprint("\nBeginning operations at {}\n".format(PROJECTPATH))
     CHAPTERS = get_immediate_subdirectories(PROJECTPATH)
-    with ProcessPoolExecutor() as executor:
-        for chapterop, chapter in zip(CHAPTERS, executor.map(chapterops, CHAPTERS)):
-            print("{} is ready ".format(chapter))
+    chapterpool = Pool(len(CHAPTERS), maxtasksperchild=1)
+    for chapterop, chapter in zip(CHAPTERS, chapterpool.map(
+            chapterops, CHAPTERS)):
+        print("{} is ready ".format(chapter))
