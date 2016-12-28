@@ -4,19 +4,38 @@
 import sys
 import os
 import time
+
 import threading
 from multiprocessing import Pool
 import urllib
 import traceback
+import concurrent.futures
 from concurrent.futures import ProcessPoolExecutor
 import requests
+from GoogleScraper import scrape_with_config
+
+import docx
 from textblob import Blobber
 from textblob.np_extractors import ConllExtractor
 from textblob_aptagger import PerceptronTagger
-from GoogleScraper import scrape_with_config
-import docx
-
+from html.parser import HTMLParser
+from bs4 import BeautifulSoup
 TB = Blobber(pos_tagger=PerceptronTagger(), np_extractor=ConllExtractor())
+
+class MLStripper(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.reset()
+        self.fed = []
+    def handle_data(self, d):
+        self.fed.append(d)
+    def get_data(self):
+        return ''.join(self.fed)
+
+def strip_tags(badtext):
+    mlstripper = MLStripper()
+    mlstripper.feed(badtext)
+    return mlstripper.get_data()
 
 def get_immediate_subdirectories(a_dir):
     """ Get only the immediate subfolders """
@@ -90,59 +109,78 @@ def phrasescraper(aphrase, aprocpath):
     uprint('finished phrase operations for {} at {}'.
            format(aphrase, time.strftime('%X')))
 
-def chunkoperations(aprocpath, somechunks):
+def tchunkoperations(aprocpath, sometchunks):
     """ file writing and printing """
     uprint("Creating docx for {}".format(aprocpath.split("\\")[-1]))
     chapterdoc = docx.Document()
     chapterdoc.add_heading(aprocpath.split("\\")[-1], 0)
-    bodytable = chapterdoc.add_table(rows=len(somechunks), cols=1)
+    bodytable = chapterdoc.add_table(rows=len(sometchunks), cols=1)
     progcount = 0
-    uprint("Creating progress bar")
-    printprogress(progcount, len(somechunks), prefix='Progress:',
+    printprogress(progcount, len(sometchunks), prefix='Progress:',
                   suffix='Complete', pbarlength=50)
-    for chunkno, chunk in enumerate(somechunks):
-        chunkcell = bodytable.cell(chunkno, 0)
-        chunktable = chunkcell.add_table(rows=5, cols=1)
-        textcell = chunktable.cell(0, 0)
-        phrasecell = chunktable.cell(1, 0)
-        summcell = chunktable.cell(2, 0)
-        tickercell = chunktable.cell(3, 0)
-        imgcell = chunktable.cell(4, 0)
-        chunkphrases = []
+    for tchunkno, tchunk in enumerate(sometchunks):
+        tchunkcell = bodytable.cell(tchunkno, 0)
+        tchunktable = tchunkcell.add_table(rows=5, cols=1)
+        textcell = tchunktable.cell(0, 0)
+        phrasecell = tchunktable.cell(1, 0)
+        summcell = tchunktable.cell(2, 0)
+        tickercell = tchunktable.cell(3, 0)
+        imgcell = tchunktable.cell(4, 0)
+        tchunkphrases = [[]]
+        tcbunkinfos = [[]]
         tickersubjectivity = 1
-        for sentence in chunk:
+        uprint("created chapter table in document")
+        for sentence in tchunk:
             for phrase in sentence.noun_phrases:
-                chunkphrases.extend(phrase)
+                tchunkphrases.extend(phrase)
+                uprint("starting wikipidea search for {}".format(phrase))
+                article = urllib.request.quote("magnetic field")
+                opener = urllib.request.build_opener()
+                opener.addheaders = [('User-agent', 'Mozilla/5.0')] #wikipedia needs this
+                try:
+                    resource = opener.open("http://en.wikipedia.org/wiki/" + article)
+                    data = resource.read()
+                    resource.close()
+                    soup = BeautifulSoup(data, "lxml")
+                    infomarkup = soup.find('div', id="bodyContent").p
+                    info = TB(strip_tags(str(infomarkup)))
+                    infotext = " ".join(map(str, info.sentences[:2]))
+                    tchunkinfos.exptend(infotext)
+                except Exception:
+                    print("Wiki error" + Exception)
             if sentence.sentiment.subjectivity < tickersubjectivity:
                 subticker = sentence
-        textcell.text = " ".join(map(str, chunk)) + "\n" + "-"*60
-        phrasecell.text = "\n".join(map(str, chunkphrases)) + "\n" + "-"*60
+        uprint("ticker selected : {}".format(sentence))
+        textcell.text = " ".join(map(str, tchunk)) + "\n" + "-"*60
+        phrasecell.text = "\n".join(map(str, zip(tchunkphrases, tchunkinfos)))
+        phrasecell.add_paragraph("\n" + "-"*60)
         tickercell.text = "Ticker Suggestions :\n*2"
-        tickercell.add_run(str(subticker) + "\n" + "-"*60)
+        tickercell.add_paragraph(str(subticker) + "\n" + "-"*60)
         imgcell.text = "_"*103
         time.sleep(0.1)
         progcount += 1
-        printprogress(progcount, len(somechunks), prefix='Progress:',
+        printprogress(progcount, len(sometchunks), prefix='Progress:',
                       suffix='Complete', pbarlength=50)
     chapterdoc.save(os.path.join(aprocpath, "rawscreenplay.docx"))
+    uprint("Wrote document at {}".format(aprocpath))
 
-def chunkify(aprocpath):
-    """ Separate chunks  """
-    uprint("Spellchecking and chunking {}\n\n".format(aprocpath.split("\\")[-1]))
+def tchunkify(aprocpath):
+    """ Separate tchunks  """
+    uprint("Spellchecking and tchunking {}\n\n".format(aprocpath.split("\\")[-1]))
     scfile = os.path.join(aprocpath, 'script.txt')
     with open(scfile, encoding='ascii', mode='r', errors='replace') as scriptfile:
         ascripttext = TB(scriptfile.read())
         scripttext = ascripttext.correct()
     uprint("\nRead script for {}\n".format(aprocpath.split("\\")[-1]))
-    chunks = [scripttext.sentences[x:x+4] for x in range(0, len(scripttext.sentences), 4)]
-    uprint("\nCreated chunks for {}\n".format(aprocpath.split("\\")[-1]))
-    chunkoperations(aprocpath, chunks)
+    tchunks = [scripttext.sentences[x:x+4] for x in range(0, len(scripttext.sentences), 4)]
+    uprint("\nCreated tchunks for {}".format(aprocpath.split("\\")[-1]))
+    tchunkoperations(aprocpath, tchunks)
 
 def chapterops(chapterpath):
     """ Reads the contents of a chapter and calls phrase operations"""
     if not os.path.exists(os.path.join(chapterpath, "rawscreenplay.docx")):
         uprint("Raw screenplay found for {}".format(chapterpath.split("\\")[-1]))
-        chunkify(chapterpath)
+        tchunkify(chapterpath)
         uprint("Chapter {} is ready for modification !".format(chapterpath.split("\\")[-1]))
     if not os.path.exists(os.path.join(chapterpath, "finalscreenplay.docx")):
         uprint("Chapter {} is ready for modificatio !".format(chapterpath.split("\\")[-1]))
@@ -151,7 +189,7 @@ if __name__ == '__main__':
     PROJECTPATH = "C:\\Users\\nnikh\\Documents\\scrape"
     uprint("\nBeginning operations at {}\n".format(PROJECTPATH))
     CHAPTERS = get_immediate_subdirectories(PROJECTPATH)
-    chapterpool = Pool(len(CHAPTERS), maxtasksperchild=1)
-    for chapterop, chapter in zip(CHAPTERS, chapterpool.map(
-            chapterops, CHAPTERS)):
-        print("{} is ready ".format(chapter))
+    with concurrent.futures.ProcessPoolExecutor() as executor:
+        for chapterop, chapter in zip(CHAPTERS, executor.map(
+                chapterops, CHAPTERS)):
+            print("Process{} ".format(chapterop.split("\\"[-1])))
