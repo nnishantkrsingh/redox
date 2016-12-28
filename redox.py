@@ -6,7 +6,6 @@ import os
 import time
 
 import threading
-from multiprocessing import Pool
 import urllib
 import traceback
 import concurrent.futures
