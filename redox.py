@@ -3,9 +3,9 @@
 # -*- coding: utf-8 -*-
 import sys
 import os
+import re
 import time
 import threading
-import multiprocessing
 import urllib
 import requests
 from more_itertools import unique_everseen
@@ -15,7 +15,19 @@ from textblob.np_extractors import ConllExtractor
 from textblob_aptagger import PerceptronTagger
 from bs4 import BeautifulSoup
 from GoogleScraper import scrape_with_config, GoogleSearchError
-TB = Blobber(pos_tagger=PerceptronTagger(), np_extractor=ConllExtractor())
+from PIL import Image
+TB = Blobber(pos_tagger=PerceptronTagger(),
+             np_extractor=ConllExtractor())
+
+def cleanimages(img_dir):
+    """ Delete smaller images """
+    for filename in os.listdir(img_dir):
+        filepath = os.path.join(img_dir, filename)
+        with Image.open(filepath) as im:
+            x, y = im.size
+        totalsize = x*y
+        if totalsize < 480000:
+            os.remove(filepath)
 
 def get_immediate_subdirectories(a_dir):
     """ Get only the immediate subfolders """
@@ -44,11 +56,15 @@ class FetchResource(threading.Thread):
         self.urls = urls
     def run(self):
         for url in self.urls:
-            url = urllib.parse.unquote(url)
+            furl = urllib.parse.unquote(url)
+            gurl = furl.split("/")[-1][:10]
+            pixname = re.sub('[^0-9a-zA-Z]+', '', gurl)
+            if "." not in pixname:
+                pixname.join(pixname.join(".jpg"))
             with open(os.path.join(
-                self.target, url.split('/')[-1]), 'wb') as pix:
+                self.target, pixname), 'wb') as pix:
                 try:
-                    content = requests.get(url).content
+                    content = requests.get(furl).content
                     pix.write(content)
                 except Exception:
                     pass
@@ -57,21 +73,23 @@ class FetchResource(threading.Thread):
 def phrasescraper(aphrase, aprocpath):
     """ Gets images for a phrase and writes to the phrase folder """
     print("Beginning scrape for {}".format(aphrase))
-    target_directory = aprocpath
+    target_directory = os.path.join(aprocpath, "images", aphrase)
+    if not os.path.isdir(target_directory):
+        os.makedirs(target_directory)
     config = {
         'keyword': aphrase,
-        'search_engines': ['yandex', 'google', 'bing', 'yahoo'],
+        'search_engines': ['yandex', 'yahoo'],
         'search_type': 'image',
         'scrape_method': 'selenium',
-        'do_caching': True}
-
+        'sel_browser' : 'Phantomjs',
+        'do_caching': False,
+        'database_name' : aphrase}
     try:
         search = scrape_with_config(config)
     except GoogleSearchError as generror:
         print(generror)
-
     image_urls = []
-    if not isinstance(search, None):
+    if search is not None:
         for serp in search.serps:
             image_urls.extend(
                 [link.link for
@@ -79,12 +97,8 @@ def phrasescraper(aphrase, aprocpath):
 
         print('[i] Going to save {num} images  in "{dir}"'.
               format(num=len(image_urls), dir=target_directory))
-        try:
-            os.mkdir(target_directory)
-        except FileExistsError:
-            pass
         num_threads = 100
-        linkthreads = [FetchResource('images/', [])
+        linkthreads = [FetchResource(target_directory, [])
                        for i in range(num_threads)]
         while image_urls:
             for linkthread in linkthreads:
@@ -101,6 +115,8 @@ def phrasescraper(aphrase, aprocpath):
             imgthread.join()
         print('finished phrase operations for {} at {}'.
               format(aphrase, time.strftime('%X')))
+    else:
+        print("\nNo results for {}\n".format(aphrase))
 
 def frameoperations(aprocpath, someframes):
     """ file writing and printing """
@@ -136,9 +152,8 @@ def frameoperations(aprocpath, someframes):
                     frameinfos.extend(infotext)
                     print("\nextracted wikipedia result for {} : {}".
                           format(phrase, infotext))
-                except Exception as exception:
-                    assert type(exception).__name__ == 'NameError'
-                    assert exception.__class__.__name__ == 'NameError'
+                except Exception:
+                    pass
             if sentence.subjectivity < tickersubjectivity:
                 if sentence.polarity > tickerpolarity:
                     subticker = str(sentence)
@@ -178,20 +193,37 @@ def chapterops(chapterpath):
         with open(os.path.join(chapterpath, "phraselist.txt"), 'r',
                   encoding='ascii', errors='ignore') as oldphrasefile:
             framephrases = oldphrasefile.readlines()
-            for phrase in framephrases:
-                newphrase = "".join([smbl for smbl in phrase
-                                     if smbl is smbl.isalnum()])
-                phrasescraper(newphrase, chapterpath + "\\" + newphrase)
+        for phrase in framephrases:
+            newphrase = "".join(
+                [smbl for smbl in phrase
+                 if smbl.isalnum() or smbl == " "])
+            if phrase is not None:
+                phrasescraper(newphrase, chapterpath)
+            else:
+                print("\nEmpty phrase found\n")
+        for dirname in os.listdir(
+            os.path.join(chapterpath, "images")):
+            if os.path.isdir(
+                os.path.join(chapterpath, "images", dirname)):
+                cleanimages(os.path.join(
+                    os.path.join(chapterpath, "images", dirname)))
+            else:
+                pass
+        print("removed smaller images for {}"
+              .format(chapterpath.split("\\")[-1]))
+
     elif os.path.exists(os.path.join(chapterpath, "rawscreenplay.docx")):
         print("{} is ready for first review".format(chapterpath.split("\\")[-1]))
     elif not os.path.exists(os.path.join(chapterpath, "rawscreenplay.docx")):
         frameify(chapterpath)
+
 if __name__ == '__main__':
     PROJECTPATH = "C:\\Users\\nnikh\\Documents\\scrape"
     print("\nBeginning operations at {}\n".format(PROJECTPATH))
     CHAPTERS = get_immediate_subdirectories(PROJECTPATH)
-    CHAPTERPOOL = [multiprocessing.Process(
-        target=chapterops, args=(chapter,)) for chapter in CHAPTERS]
+    CHAPTERPOOL = [threading.Thread(
+        target=chapterops, args=(chapter,))
+                   for chapter in CHAPTERS]
     for proc in CHAPTERPOOL:
         proc.start()
     for proc in CHAPTERPOOL:
