@@ -4,6 +4,7 @@
 import sys
 import os
 import time
+import codecs
 
 import threading
 import multiprocessing
@@ -18,6 +19,7 @@ from textblob.np_extractors import ConllExtractor
 from textblob_aptagger import PerceptronTagger
 from bs4 import BeautifulSoup
 from GoogleScraper import scrape_with_config
+sys.stdout = codecs.getwriter("iso-8859-1")(sys.stdout, 'xmlcharrefreplace')
 TB = Blobber(pos_tagger=PerceptronTagger(), np_extractor=ConllExtractor())
 
 class MLStripper(HTMLParser):
@@ -32,13 +34,11 @@ class MLStripper(HTMLParser):
         """ join parsed content """
         return ''.join(self.fed)
 
-
 def strip_tags(html):
     """ callinf parser """
     rparser = MLStripper()
     rparser.feed(html)
     return rparser.get_data()
-
 
 def get_immediate_subdirectories(a_dir):
     """ Get only the immediate subfolders """
@@ -78,7 +78,6 @@ class FetchResource(threading.Thread):
                 content = requests.get(furl).content
                 picfilename.write(content)
 
-
 def phrasescraper(aphrase, aprocpath):
     """ Gets images for a phrase and writes to the phrase folder """
     print("Beginning scrape for {}".format(aphrase))
@@ -106,7 +105,6 @@ def phrasescraper(aphrase, aprocpath):
         thread.join(timeout=120)
     print('finished phrase operations for {} at {}'.
           format(aphrase, time.strftime('%X')))
-
 
 def tchunkoperations(aprocpath, sometchunks):
     """ file writing and printing """
