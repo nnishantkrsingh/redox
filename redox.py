@@ -175,7 +175,7 @@ def frameoperations(aprocpath, someframes):
         frametable.cell(1, 0).text = "\n".join(
             [str(frameinfo) for frameinfo in frameinfos])
         frametable.cell(1, 0).add_paragraph(
-            "\n".join(framephrases))
+            "\n".join(framephrase for framephrase in framephrases))
         frametable.cell(1, 0).add_paragraph(
             "\n" + "-"*60)
         frametable.cell(3, 0).text = "Ticker Suggestions :\n*2"
@@ -199,7 +199,7 @@ def frameify(aprocpath):
                   errors='ignore') as scriptfile:
             ascripttext = TB(scriptfile.read())
         print("\nRead script for {}".
-                format(aprocpath.split("\\")[-1]))
+              format(aprocpath.split("\\")[-1]))
         scripttext = ascripttext.correct()
         print("\n\tCorrected spellings for {}\n\n".
               format(aprocpath.split("\\")[-1]))
@@ -245,7 +245,7 @@ def chapterops(chapterpath):
               format(chapterpath.split("\\")[-1]))
     elif not os.path.exists(os.path.join(
             chapterpath, "rawscreenplay.docx")):
-            frameify(chapterpath)
+        frameify(chapterpath)
 
 if __name__ == '__main__':
     PROJECTPATH = "C:\\Users\\nnikh\\Documents\\scrape"
