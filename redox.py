@@ -80,6 +80,7 @@ class FetchResource(threading.Thread):
                         MaxRetryError,
                         gaierror):
                     print("\nrequests  error for  {}\n".format(furl))
+
 def phrasescraper(aphrase, aprocpath):
     """ Gets images for a phrase and writes to the phrase folder """
     print("\t\tBeginning scrape for {}".format(aphrase))
@@ -128,6 +129,7 @@ def phrasescraper(aphrase, aprocpath):
     except WebDriverException:
         print("\n\tghostdriver exception for {}!\n".format(aphrase))
 
+
 def frameoperations(aprocpath, someframes):
     """ file writing and printing """
     chapterdoc = docx.Document()
@@ -160,15 +162,14 @@ def frameoperations(aprocpath, someframes):
                     resource.close()
                     soup = BeautifulSoup(data, "lxml")
                     infomarkup = soup.find('div', id="bodyContent").p
-                    print("\n\t\t\t\t {} : {}".
-                        format(phrase, infomarkup.text))
+                    print("\n\t\t {} : {}".
+                          format(phrase, infomarkup.text))
                 except Exception:
-                    pass 
-
+                    pass
             if sentence.subjectivity < tickersubjectivity:
                 if sentence.polarity > tickerpolarity:
                     subticker = str(sentence)
-        print("\n\n\t\t\t{}\n\n".format(str(subticker)))
+        print("\n\n\t\t{}\n\n".format(str(subticker)))
         frametable.cell(0, 0).text = " ".join(
             [str(tch) for tch in frame]) + "\n" + "-"*60
         frametable.cell(1, 0).text = "\n".join(
@@ -197,10 +198,15 @@ def frameify(aprocpath):
         with open(scfile, encoding='ascii', mode='r',
                   errors='ignore') as scriptfile:
             ascripttext = TB(scriptfile.read())
-            scripttext = ascripttext.correct()
+        print("\nRead script for {}".
+                format(aprocpath.split("\\")[-1]))
+        scripttext = ascripttext.correct()
+        print("\n\tCorrected spellings for {}\n\n".
+              format(aprocpath.split("\\")[-1]))
         frames = [scripttext.sentences[x:x+4]
-                  for x in range(0, len(scripttext.sentences), 4)]
-        print("\n\tCorrected spellings and frameed {}\n\n".
+                  for x in range(0, len(
+                      scripttext.sentences), 4)]
+        print("\n\tframified {}\n\n".
               format(aprocpath.split("\\")[-1]))
         frameoperations(aprocpath, frames)
     else:
@@ -226,22 +232,20 @@ def chapterops(chapterpath):
                       format(chapterpath.split("\\")[-1]))
         for dirname in os.listdir(
                 os.path.join(chapterpath, "images")):
-            if os.path.isdir(
-                    os.path.join(chapterpath, "images", dirname)):
-                cleanimages(os.path.join(
-                    os.path.join(chapterpath, "images", dirname)))
+            if os.path.isdir(os.path.join(
+                    chapterpath, "images", dirname)):
+                cleanimages(os.path.join(chapterpath, "images", dirname))
             else:
                 pass
         print("\tremoved smaller images for {}"
               .format(chapterpath.split("\\")[-1]))
-
     elif os.path.exists(os.path.join(
             chapterpath, "rawscreenplay.docx")):
         print("{} is ready for first review".
               format(chapterpath.split("\\")[-1]))
     elif not os.path.exists(os.path.join(
             chapterpath, "rawscreenplay.docx")):
-        frameify(chapterpath)
+            frameify(chapterpath)
 
 if __name__ == '__main__':
     PROJECTPATH = "C:\\Users\\nnikh\\Documents\\scrape"
