@@ -124,6 +124,7 @@ def phrasescraper(aphrase, aprocpath):
             print("\t\t\nNo results for {}\n".format(aphrase))
     except WebDriverException:
         print("\n\tghostdriver exception for {}!\n".format(aphrase))
+
 def frameoperations(aprocpath, someframes):
     """ file writing and printing """
     chapterdoc = docx.Document()
@@ -148,7 +149,7 @@ def frameoperations(aprocpath, someframes):
                     framephrases)].extend(phrase)
                 opener = urllib.request.build_opener()
                 opener.addheaders = [('User-agent', 'Mozilla/5.0')]
-                article = urllib.request.quote(str(phrase))
+                article = urllib.request.quote(phrase)
 
                 resource = opener.open(
                     "http://en.wikipedia.org/wiki/" + article)
