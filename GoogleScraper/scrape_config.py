@@ -15,7 +15,7 @@ and handles output.
 # How and if results are printed when running GoogleScraper.
 # if set to 'all', then all data from results are outputted
 # if set to 'summarize', then only a summary of results is given.
-print_results = 'all'
+print_results = 'summarize'
 
 # The name of the database that is written to the same
 # directory where GoogleScraper will be called.
@@ -44,7 +44,7 @@ log_sqlalchemy = False
 # INFO = 20
 # DEBUG = 10
 # NOTSET = 0
-log_level = 'INFO'
+log_level = 'WARN'
 
 """
 [SCRAPING]
@@ -61,7 +61,7 @@ keywords = []
 keyword_file = ''
 
 # How many results per SERP page
-num_results_per_page = 10
+num_results_per_page = 50
 
 # How many pages should be requested for each single keyword
 num_pages_for_keyword = 1
@@ -90,7 +90,7 @@ google_ip_file = ''
 supported_search_engines = ['google', 'yandex', 'bing', 'yahoo', 'baidu', 'duckduckgo', 'ask']
 
 # The search engine(s) to use. For the supported search engines, see above "supported_search_engines"
-search_engines = ['google', ]
+search_engines = ['yandex','yahoo']
 
 # The base search urls
 # Ready to append the parameters at the end to fine tune the search.
@@ -122,7 +122,7 @@ ask_search_url = 'http://de.ask.com/web?'
 # The search type. Currently, the following search modes are
 # supported for some search engine=  normal, video, news and image search.
 # "normal" search type is supported in all search engines.
-search_type = 'normal'
+search_type = 'image'
 
 # The scrape method. Can be 'http' or 'selenium' or 'http-async'
 # http mode uses http packets directly, whereas selenium mode uses a real browser (or phantomjs).
@@ -161,7 +161,7 @@ proxy_file = ''
 
 
 # Whether to continue the last scrape when ended early.
-continue_last_scrape = True
+continue_last_scrape = False
 
 # Proxies stored in a MySQL database. If you set a parameter here, GoogleScraper will look for proxies
 # in a table named 'proxies' for proxies with the following format=
@@ -192,14 +192,14 @@ proxy_info_url = 'http://ipinfo.io/json'
 base_search_url = 'http://www.google.com/search'
 
 # Whether caching shall be enabled
-do_caching = True
+do_caching = False
 
 # Whether the whole html files should be cached or
 # if the file should be stripped from unnecessary data like javascripts, comments, ...
-minimize_caching_files = True
+minimize_caching_files = False
 
 # If set, then compress/decompress cached files
-compress_cached_files = True
+compress_cached_files = False
 
 # Use either bz2 or gz to compress cached files
 compressing_algorithm = 'gz'
@@ -245,7 +245,7 @@ All settings that only apply for requesting with real browsers.
 """
 
 # which browser to use in selenium mode. Valid values=  ('Chrome', 'Firefox', 'Phantomjs')
-sel_browser = 'Chrome'
+sel_browser = 'Phantomjs'
 
 # Manual captcha solving
 # If this parameter is set to a Integer, the browser waits for the user
