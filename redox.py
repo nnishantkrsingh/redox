@@ -77,6 +77,7 @@ class FetchResource(threading.Thread):
                             MaxRetryError,
                             gaierror):
                         print("\nrequests  error for  {}\n".format(furl))
+
 def phrasescraper(aphrase, aprocpath):
     """ Gets images for a phrase and writes to the phrase folder """
     print("\t\tBeginning scrape for {}".format(aphrase))
@@ -99,7 +100,6 @@ def phrasescraper(aphrase, aprocpath):
                 image_urls.extend(
                     [link.link for
                      link in serp.links])
-
             print('\t\t[i] Saving {num} images at "{dir}"'.
                   format(num=len(image_urls), dir=target_directory))
             num_threads = 100
@@ -150,7 +150,6 @@ def frameoperations(aprocpath, someframes):
                 opener = urllib.request.build_opener()
                 opener.addheaders = [('User-agent', 'Mozilla/5.0')]
                 article = urllib.request.quote(phrase)
-
                 resource = opener.open(
                     "http://en.wikipedia.org/wiki/" + article)
                 data = resource.read()
