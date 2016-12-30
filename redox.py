@@ -6,11 +6,12 @@ import os
 import re
 import time
 import threading
+import multiprocessing
 import urllib
 from socket import gaierror
 import requests
 from requests.packages.urllib3.exceptions import MaxRetryError
-from requests.packages.urllib3.exceptions import NewRequestsError
+from requests.packages.urllib3.exceptions import ConnectionError as NewRequestsError
 from requests.exceptions import ConnectionError as RequestsError
 from more_itertools import unique_everseen
 import docx
@@ -61,23 +62,24 @@ class FetchResource(threading.Thread):
         self.urls = urls
     def run(self):
         for url in self.urls:
-            furl = urllib.parse.unquote(url)
-            gurl = furl.split("/")[-1][:10]
-            pixname = re.sub('[^0-9a-zA-Z]+', '', gurl)
+            url = urllib.parse.unquote(url)
+            furl = url
+            gurl = furl.split("/")[-1][:15]
+            pixname = re.sub('[^0-9a-zA-Z]+^.', '', gurl)
+            pixname.join(pixname.join(".jpg"))
             if "." not in pixname:
-                pixname.join(pixname.join(".jpg"))
-                with open(os.path.join(
-                    self.target, pixname), 'wb') as pix:
-                    try:
-                        content = requests.get(furl).content
-                        pix.write(content)
-                        print('[+] {}'.format(pixname))
-                    except (RequestsError,
-                            NewRequestsError,
-                            MaxRetryError,
-                            gaierror):
-                        print("\nrequests  error for  {}\n".format(furl))
-
+                pixname += ".jpg"
+            with open(os.path.join(
+                self.target, pixname), 'wb') as pix:
+                try:
+                    content = requests.get(url).content
+                    pix.write(content)
+                    print('[+] {}'.format(pixname))
+                except (RequestsError,
+                        NewRequestsError,
+                        MaxRetryError,
+                        gaierror):
+                    print("\nrequests  error for  {}\n".format(furl))
 def phrasescraper(aphrase, aprocpath):
     """ Gets images for a phrase and writes to the phrase folder """
     print("\t\tBeginning scrape for {}".format(aphrase))
@@ -100,6 +102,7 @@ def phrasescraper(aphrase, aprocpath):
                 image_urls.extend(
                     [link.link for
                      link in serp.links])
+
             print('\t\t[i] Saving {num} images at "{dir}"'.
                   format(num=len(image_urls), dir=target_directory))
             num_threads = 100
@@ -139,7 +142,6 @@ def frameoperations(aprocpath, someframes):
             frameno, 0).add_table(rows=5, cols=1)
         frameinfos = [[]]
         framephrases = [[]]
-        infotext = ""
         tickersubjectivity = 1
         tickerpolarity = 0
         subticker = str(frame[1])
@@ -147,20 +149,22 @@ def frameoperations(aprocpath, someframes):
             for phrase in sentence.noun_phrases:
                 framephrases = [unique_everseen(
                     framephrases)].extend(phrase)
+                phrasescraper(phrase, aprocpath)
                 opener = urllib.request.build_opener()
                 opener.addheaders = [('User-agent', 'Mozilla/5.0')]
-                article = urllib.request.quote(phrase)
-                resource = opener.open(
-                    "http://en.wikipedia.org/wiki/" + article)
-                data = resource.read()
-                resource.close()
-                soup = BeautifulSoup(data, "lxml")
-                infomarkup = soup.find('div', id="bodyContent").p
-                for info in infomarkup:
-                    infotext += "\n"+ info.text
-                frameinfos.extend(infotext)
-                print("\n\t\t\t\t {} : {}".
-                      format(phrase, infotext))
+                try:
+                    article = urllib.request.quote(phrase)
+                    resource = opener.open(
+                        "http://en.wikipedia.org/wiki/" + article)
+                    data = resource.read()
+                    resource.close()
+                    soup = BeautifulSoup(data, "lxml")
+                    infomarkup = soup.find('div', id="bodyContent").p
+                    print("\n\t\t\t\t {} : {}".
+                        format(phrase, infomarkup.text))
+                except Exception:
+                    pass 
+
             if sentence.subjectivity < tickersubjectivity:
                 if sentence.polarity > tickerpolarity:
                     subticker = str(sentence)
@@ -244,7 +248,7 @@ if __name__ == '__main__':
     print("\nBeginning operations at {}\n".
           format(PROJECTPATH))
     CHAPTERS = get_immediate_subdirectories(PROJECTPATH)
-    CHAPTERPOOL = [threading.Thread(
+    CHAPTERPOOL = [multiprocessing.Process(
         target=chapterops, args=(chapter,))
                    for chapter in CHAPTERS]
     for proc in CHAPTERPOOL:
